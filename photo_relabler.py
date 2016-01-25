@@ -4,6 +4,10 @@ from PIL import Image, ImageTk
 import os
 from collections import OrderedDict
 
+# for debugging
+import pdb
+pdb.set_trace()
+
 class PhotoReLabeler:
     """  
     Gui that serves batches of photos from chosen directory allowing user to choose the best
