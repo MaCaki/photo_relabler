@@ -5,8 +5,8 @@ import os
 from collections import OrderedDict
 
 # for debugging
-import pdb
-pdb.set_trace()
+# import pdb
+# pdb.set_trace()
 
 class PhotoReLabeler:
     """  
@@ -22,11 +22,28 @@ class PhotoReLabeler:
         self.current_save_folder = None
         self.thumbnail_size = (300,200)
         master.title("A simple GUI")
-        button_frame = Frame(master, width=300, height=200)
+        button_frame = Frame(master, width=1000, height=1000)
  
         self.main_instructions = Message(master, text="Select the directory to work in: ")
         self.main_instructions.pack(anchor="n")
         Button(master, text="browse folders", command=self.askdirectory).pack()
+
+        FUNCTIONS = [
+        ("Relabel", 1),
+        ("Segment Eyelid", 2),
+        ("Select Follicles", 3),
+        ("Select Centroid", 4)
+        ]
+
+        processing_functions = {}
+
+        active_function = IntVar()
+        active_function.set(1) # initialize
+
+        for function, num in FUNCTIONS:
+            b = Radiobutton(master, text=function,
+                            variable=active_function, value=num)
+            b.pack(anchor=W)
 
         self.close_button = Button(master, text="Close", command=master.quit)
         self.close_button.pack()
@@ -74,8 +91,7 @@ class PhotoReLabeler:
         self.batch = OrderedDict.fromkeys(self.photo_sorter.get_next_patient_filenames())
         COL = 0
         ROW = 0
-        for f in self.batch.keys():
-            print f
+        for f in self.batch.keys(): 
             orig = Image.open(f)
             im_small = Image.open(f)
             im_small.thumbnail(self.thumbnail_size)
@@ -112,16 +128,17 @@ class PhotoReLabeler:
 
     def askdirectory(self):
         dirname = tkFileDialog.askdirectory() 
+        if dirname == "/":
+            return
+
         save_dir = dirname + "_renamed/"
         try: 
             os.mkdir(save_dir)
         except: 
-            print "Folder Exists"
+            print("Folder Exists")
         dirname += "/"
         self.current_save_folder = save_dir 
         self.process_folder(dirname)
-
-        return dirname
 
 
 
@@ -138,14 +155,9 @@ class EyePhotoPatientSorter:
         self.thumbnail_size = (600,400)
         self.current_photo = self.file_names.next()
 
-    def new_directory(self, directory):
-        self.file_names= iter([directory + f for f in os.listdir(directory) if f.endswith(".JPG")])
-        self.has_more_photos = True
-        self.current_photo = self.file_names.next()
-
     def get_next_patient_filenames(self):
         if not self.has_more_photos:
-            print "directory exhausted"
+            print("directory exhausted") 
             return 0
 
         patient_photos = []
