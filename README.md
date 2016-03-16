@@ -5,7 +5,9 @@ Simple gui to rename all the photos in a chosen directory to produce a well form
 ## TODO: 
 
 Add capabilities to label 
-- folicles
-- segment eyelids
+- folicles  (x,y) coordinate
+- segment eyelids - coordinates of vertices 
 
-Store meta data about the image in a database
+see: http://effbot.org/tkinterbook/tkinter-events-and-bindings.htm
+
+Store meta data about the image sqlite

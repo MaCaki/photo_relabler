@@ -3,6 +3,7 @@ import tkFileDialog
 from PIL import Image, ImageTk
 import os
 from collections import OrderedDict
+from eye_patient_sorter import EyePhotoPatientSorter
 
 # for debugging
 # import pdb
@@ -19,38 +20,57 @@ class PhotoReLabeler:
         self.master = master
         self.current_window = None
         self.current_folder = None
-        self.current_save_folder = None
+        self.current_save_folder = StringVar()
+        self.working_dir = StringVar()
         self.thumbnail_size = (300,200)
-        master.title("A simple GUI")
-        button_frame = Frame(master, width=1000, height=1000)
+        master.title("Photo Corpus Editor")
+
+        # The default function is selecting and renaming
+        self.active_function = IntVar()
+        self.active_function.set(1) # initialize
+        self.FUNCTIONS = {
+            1:"Rename Files",
+            2:"Segment and Tag Images"
+            }
  
-        self.main_instructions = Message(master, text="Select the directory to work in: ")
+        self.main_instructions = Message(master, text="Select the directory to process: ")
         self.main_instructions.pack(anchor="n")
         Button(master, text="browse folders", command=self.askdirectory).pack()
 
-        FUNCTIONS = [
-        ("Relabel", 1),
-        ("Segment Eyelid", 2),
-        ("Select Follicles", 3),
-        ("Select Centroid", 4)
-        ]
+        dir_disp = Frame(master)
+        Label(dir_disp, text="Working Directory:", width=20).grid(row=0,column=0)
+        Message(master,  textvariable=self.working_dir,width=100).grid(row=0,column=1)
+        dir_disp.pack()
 
-        processing_functions = {}
 
-        active_function = IntVar()
-        active_function.set(1) # initialize
-
-        for function, num in FUNCTIONS:
-            b = Radiobutton(master, text=function,
-                            variable=active_function, value=num)
+        for num in self.FUNCTIONS.keys():
+            b = Radiobutton(master, text=self.FUNCTIONS[num],
+                            variable=self.active_function, value=num)
             b.pack(anchor=W)
 
         self.close_button = Button(master, text="Close", command=master.quit)
         self.close_button.pack()
 
+    def askdirectory(self):
+        dirname = tkFileDialog.askdirectory() 
+        if dirname == "/":
+            return
+        self.working_dir.set(dirname)
 
+        # f_name = self.FUNCTIONS[self.active_function.get()].replace(" ", "_")
+        # if self.active_function.get() == 1:
+        #     save_dir = dirname + "_processed_" + f_name +"/"
+        #     try: 
+        #         os.mkdir(save_dir)
+        #     except: 
+        #         print("Folder Exists")
+        #     self.current_save_folder = save_dir 
 
-    def process_folder(self, folder):   
+        # dirname += "/"
+        # self.current_save_folder = dirname
+        # self.rename_files(dirname)
+
+    def rename_files(self, folder):   
         """ 
         calls process_next_batch so that the user can begin renaming the files in the chosen 
         directory. 
@@ -60,10 +80,9 @@ class PhotoReLabeler:
         """
         self.current_folder = folder
         self.photo_sorter = EyePhotoPatientSorter(folder)
-        self.process_next_batch()
+        self.process_next_unlabeled_batch()
 
-
-    def process_next_batch(self):     
+    def process_next_unlabeled_batch(self):     
         # If there are no more photos, return so that user can choose another directory. 
         if not self.photo_sorter.has_more_photos:
             notice = Toplevel()
@@ -109,7 +128,7 @@ class PhotoReLabeler:
             picture_frame.pack()
 
         Button(self.current_window, text="Close", command=self.current_window.destroy).pack()
-        Button(self.current_window, text="Next Batch", command=self.process_next_batch).pack()
+        Button(self.current_window, text="Next Batch", command=self.process_next_unlabeled_batch).pack()
 
     
 
@@ -120,75 +139,14 @@ class PhotoReLabeler:
             Message(warning, text="WARNING: Id number has to be digits only").pack()
             return 
 
-        save_name = self.current_save_folder + str(id_num) + ".JPG"
+        save_name = self.current_save_folder.get() + str(id_num) + ".JPG"
         im.save(save_name)
         self.current_window.destroy()
-        self.process_next_batch()
+        self.process_next_unlabeled_batch()
         return True
 
-    def askdirectory(self):
-        dirname = tkFileDialog.askdirectory() 
-        if dirname == "/":
-            return
-
-        save_dir = dirname + "_renamed/"
-        try: 
-            os.mkdir(save_dir)
-        except: 
-            print("Folder Exists")
-        dirname += "/"
-        self.current_save_folder = save_dir 
-        self.process_folder(dirname)
 
 
-
-class EyePhotoPatientSorter:
-    """ 
-    Class to hold the logic and current state of the batch sorter of the directory to be 
-    inspected and renamed.  Assumes that patients are separated by images of white id tags
-    """
-
-    def __init__(self, directory):
-        self.file_names= iter([directory + f for f in os.listdir(directory) if f.endswith(".JPG")])
-        self.white_thresh = 0.25  # from rough experiment
-        self.has_more_photos = True
-        self.thumbnail_size = (600,400)
-        self.current_photo = self.file_names.next()
-
-    def get_next_patient_filenames(self):
-        if not self.has_more_photos:
-            print("directory exhausted") 
-            return 0
-
-        patient_photos = []
-        try:
-            while(self.is_id_tag_photo(self.current_photo)):
-                patient_photos.append(self.current_photo)
-                self.current_photo = self.file_names.next()
-
-            while(not self.is_id_tag_photo(self.current_photo)):
-                patient_photos.append(self.current_photo)
-                self.current_photo = self.file_names.next()
-        except StopIteration as e: 
-            self.has_more_photos = False    
-
-        return patient_photos
-
-
-
-    """ Returns true if the number of "white" pixels in the thumbnail image is over
-    1500.  Perhaps this should be changed to a percentage so that it can handle any size image"""           
-    def is_id_tag_photo(self, file_name):
-        im = Image.open(file_name)
-        im.thumbnail(self.thumbnail_size)
-        pixels = list(im.getdata())
-        n = len(pixels)
-        num_whites = sum([1 for x in pixels if (x[0]>150 and x[1]>150 and x[2]>150)])
-        percent_white = float(num_whites)/n
-        if (percent_white > self.white_thresh):
-            return True
-        else: 
-            return False
 
 
 
