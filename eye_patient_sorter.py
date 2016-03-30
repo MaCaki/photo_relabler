@@ -1,5 +1,3 @@
-from Tkinter import *
-import tkFileDialog
 from PIL import Image, ImageTk
 import os
 from collections import OrderedDict
@@ -12,11 +10,15 @@ class EyePhotoPatientSorter:
     """
 
     def __init__(self, directory):
-        self.file_names= iter([directory + f for f in os.listdir(directory) if f.endswith(".JPG")])
+        self.file_names= iter([directory + "/" + f for f in os.listdir(directory) if f.endswith(".JPG") or f.endswith(".jpg")])
+        self.sort = True
         self.white_thresh = 0.25  # from rough experiment
         self.has_more_photos = True
         self.thumbnail_size = (600,400)
         self.current_photo = self.file_names.next()
+
+    def get_next_photo(self):
+        return 0
 
     def get_next_patient_filenames(self):
         if not self.has_more_photos:
@@ -26,11 +28,11 @@ class EyePhotoPatientSorter:
         patient_photos = []
         try:
             while(self.is_id_tag_photo(self.current_photo)):
-                patient_photos.append(self.current_photo)
+                patient_photos += [self.current_photo]
                 self.current_photo = self.file_names.next()
 
             while(not self.is_id_tag_photo(self.current_photo)):
-                patient_photos.append(self.current_photo)
+                patient_photos += [self.current_photo]
                 self.current_photo = self.file_names.next()
         except StopIteration as e: 
             self.has_more_photos = False    
